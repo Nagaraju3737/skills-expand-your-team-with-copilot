@@ -51,6 +51,45 @@ document.addEventListener("DOMContentLoaded", () => {
     weekend: { days: ["Saturday", "Sunday"] }, // Weekend days
   };
 
+  // Build a shareable URL for an activity
+  function buildShareUrl(activityName) {
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("activity", activityName);
+    return url.toString();
+  }
+
+  // Highlight a shared activity from URL parameter
+  function handleSharedActivity() {
+    const params = new URLSearchParams(window.location.search);
+    const sharedActivity = params.get("activity");
+    if (!sharedActivity) return;
+
+    // Wait for cards to render, then scroll to and highlight the matching card
+    const tryHighlight = (attempts) => {
+      const cards = activitiesList.querySelectorAll(".activity-card");
+      for (const card of cards) {
+        const title = card.querySelector("h4");
+        if (title && title.textContent.trim() === sharedActivity) {
+          card.classList.add("shared-highlight");
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => card.classList.remove("shared-highlight"), 3000);
+          return;
+        }
+      }
+      if (attempts > 0) setTimeout(() => tryHighlight(attempts - 1), 300);
+    };
+    tryHighlight(10);
+  }
+
+  // Close share dropdowns when clicking elsewhere
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".share-dropdown:not(.hidden)").forEach((d) => {
+      d.classList.add("hidden");
+    });
+  });
+
   // Initialize filters from active elements
   function initializeFilters() {
     // Initialize day filter
@@ -568,6 +607,17 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <div class="share-container">
+          <button class="share-button" data-activity="${name}" aria-label="Share this activity">
+            🔗 Share
+          </button>
+          <div class="share-dropdown hidden" data-activity="${name}">
+            <button class="share-option copy-link" data-activity="${name}">📋 Copy Link</button>
+            <a class="share-option share-email" href="" target="_blank" rel="noopener noreferrer">✉️ Email</a>
+            <a class="share-option share-whatsapp" href="" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+            <a class="share-option share-twitter" href="" target="_blank" rel="noopener noreferrer">🐦 Twitter/X</a>
+          </div>
+        </div>
       </div>
     `;
 
@@ -586,6 +636,37 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    const shareDropdown = activityCard.querySelector(".share-dropdown");
+    shareButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      // Close all other open dropdowns
+      document.querySelectorAll(".share-dropdown:not(.hidden)").forEach((d) => {
+        if (d !== shareDropdown) d.classList.add("hidden");
+      });
+      // Build share URL and update links before toggling
+      const shareUrl = buildShareUrl(name);
+      const shareText = `Check out this activity at Mergington High School: ${name}`;
+      shareDropdown.querySelector(".share-email").href =
+        `mailto:?subject=${encodeURIComponent("Check out: " + name)}&body=${encodeURIComponent(shareText + "\n" + shareUrl)}`;
+      shareDropdown.querySelector(".share-whatsapp").href =
+        `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
+      shareDropdown.querySelector(".share-twitter").href =
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+      shareDropdown.classList.toggle("hidden");
+    });
+
+    shareDropdown.querySelector(".copy-link").addEventListener("click", () => {
+      const shareUrl = buildShareUrl(name);
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showMessage("Link copied to clipboard!", "success");
+      }).catch(() => {
+        showMessage("Could not copy link. Please copy the URL manually.", "error");
+      });
+      shareDropdown.classList.add("hidden");
+    });
 
     activitiesList.appendChild(activityCard);
   }
@@ -864,5 +945,5 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   checkAuthentication();
   initializeFilters();
-  fetchActivities();
+  fetchActivities().then(handleSharedActivity);
 });
