@@ -34,6 +34,9 @@ document.addEventListener("DOMContentLoaded", () => {
     technology: { label: "Technology", color: "#e8eaf6", textColor: "#3949ab" },
   };
 
+  // School name used in share messages
+  const SCHOOL_NAME = "Mergington High School";
+
   // State for activities and filters
   let allActivities = {};
   let currentFilter = "all";
@@ -62,6 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Highlight a shared activity from URL parameter
   function handleSharedActivity() {
+    const MAX_HIGHLIGHT_ATTEMPTS = 10;
+    const RETRY_DELAY_MS = 300;
+    const HIGHLIGHT_DURATION_MS = 3000;
+
     const params = new URLSearchParams(window.location.search);
     const sharedActivity = params.get("activity");
     if (!sharedActivity) return;
@@ -74,20 +81,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (title && title.textContent.trim() === sharedActivity) {
           card.classList.add("shared-highlight");
           card.scrollIntoView({ behavior: "smooth", block: "center" });
-          setTimeout(() => card.classList.remove("shared-highlight"), 3000);
+          setTimeout(() => card.classList.remove("shared-highlight"), HIGHLIGHT_DURATION_MS);
           return;
         }
       }
-      if (attempts > 0) setTimeout(() => tryHighlight(attempts - 1), 300);
+      if (attempts > 0) setTimeout(() => tryHighlight(attempts - 1), RETRY_DELAY_MS);
     };
-    tryHighlight(10);
+    tryHighlight(MAX_HIGHLIGHT_ATTEMPTS);
   }
 
-  // Close share dropdowns when clicking elsewhere
-  document.addEventListener("click", () => {
-    document.querySelectorAll(".share-dropdown:not(.hidden)").forEach((d) => {
-      d.classList.add("hidden");
-    });
+  // Close share dropdowns when clicking outside share-related elements
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".share-container")) {
+      document.querySelectorAll(".share-dropdown:not(.hidden)").forEach((d) => {
+        d.classList.add("hidden");
+      });
+    }
   });
 
   // Initialize filters from active elements
@@ -648,7 +657,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       // Build share URL and update links before toggling
       const shareUrl = buildShareUrl(name);
-      const shareText = `Check out this activity at Mergington High School: ${name}`;
+      const shareText = `Check out this activity at ${SCHOOL_NAME}: ${name}`;
       shareDropdown.querySelector(".share-email").href =
         `mailto:?subject=${encodeURIComponent("Check out: " + name)}&body=${encodeURIComponent(shareText + "\n" + shareUrl)}`;
       shareDropdown.querySelector(".share-whatsapp").href =
